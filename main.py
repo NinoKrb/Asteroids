@@ -11,6 +11,7 @@ class Settings(object):
     path_image = os.path.join(path_assets, "images")
 
     spaceship_rotation_speed = 5
+    spaceship_speed = 5
 
 class Timer(object):
     def __init__(self, duraton, with_start=True):
@@ -41,17 +42,17 @@ class Spaceship(pygame.sprite.Sprite):
         self.filenames = filenames
         self.size = size
         self.lives = lives
-        self.angle = 0
+        self.angle = 1
         self.rotate_direction = None
         self.is_accelerating = False
         self.speed = { 'y': 0, 'x': 0 }
-        self.max_speed = [-4,4]
+        self.max_speed = 5
 
         self.update_sprite(self.filenames['normal'])
         self.set_pos(Settings.window_width // 2 - self.rect.width // 2, Settings.window_height // 2 - self.rect.height // 2)
 
     def update_sprite(self, filename):
-        self.image = pygame.image.load(os.path.join(Settings.path_image, filename)).convert()
+        self.image = pygame.image.load(os.path.join(Settings.path_image, filename)).convert_alpha()
         self.image = pygame.transform.scale(self.image, self.size)
         self.rect = self.image.get_rect()
 
@@ -76,23 +77,26 @@ class Spaceship(pygame.sprite.Sprite):
         # if (self.speed['y'] - cos(self.angle)) < self.max_speed[1] and (self.speed['y'] - cos(self.angle)) > self.max_speed[0]:
         #     self.speed['y'] -= cos(self.angle)
 
-        self.speed['x'] = 10 * cos(radians(self.angle))
-        self.speed['y'] = 10 * sin(radians(self.angle))
+        if Settings.spaceship_speed * cos(radians(self.angle)) < self.max_speed:
+            self.speed['x'] = Settings.spaceship_speed * cos(radians(self.angle))
+
+        if Settings.spaceship_speed * sin(radians(self.angle)) < self.max_speed:
+            self.speed['y'] = Settings.spaceship_speed * sin(radians(self.angle))
 
     def move(self):
         self.rect.move_ip(self.speed['x'], self.speed['y'])
 
     def check_pos(self):
-        if self.rect.top < -100:
+        if self.rect.top < -self.rect.height:
             self.rect.top = Settings.window_height
 
-        elif self.rect.top > Settings.window_height + 100:
+        elif self.rect.top > Settings.window_height + self.rect.height:
             self.rect.bottom = 0
 
-        elif self.rect.left < -100:
+        elif self.rect.left < -self.rect.width:
             self.rect.left = Settings.window_width
 
-        elif self.rect.left > Settings.window_width + 100:
+        elif self.rect.left > Settings.window_width + self.rect.width:
             self.rect.right = 0
 
     def rotate(self):
@@ -105,15 +109,15 @@ class Spaceship(pygame.sprite.Sprite):
         if self.angle + Settings.spaceship_rotation_speed > 360 and self.angle + Settings.spaceship_rotation_speed < -360:
             self.angle = 0
 
-        if self.rotate_direction != None:
-            center = self.rect.center
-            if self.is_accelerating:
-                self.update_sprite(self.filenames['boost'])
-            else:
-                self.update_sprite(self.filenames['normal'])
-            #self.image = pygame.transform.rotate(self.image, self.angle)
-            self.image = pygame.transform.rotate(self.image, -self.angle)
-            self.center_sprite(center)
+        if self.is_accelerating:
+            filename = self.filenames['boost']
+        else:
+            filename = self.filenames['normal']
+
+        center = self.rect.center
+        self.update_sprite(filename)
+        self.image = pygame.transform.rotate(self.image, -self.angle)
+        self.center_sprite(center)
 
     def center_sprite(self, center):
         self.rect = self.image.get_rect()
