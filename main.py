@@ -34,20 +34,23 @@ class Timer(object):
         return False
 
 class Asteroid(pygame.sprite.Sprite):
-    def __init__(self, filename, pos, size, speed):
+    def __init__(self, filename, size, speed):
         super().__init__()
         self.filename = filename
-        self.pos = pos
         self.size = size
         self.speed = speed
         self.update_sprite(self.filename)
-        self.set_pos(*self.pos)
+        self.find_position()
 
     def update_sprite(self, filename):
         self.image = pygame.image.load(os.path.join(Settings.path_image, filename)).convert_alpha()
         self.image = pygame.transform.scale(self.image, self.size)
         self.rect = self.image.get_rect()
         self.mask = pygame.mask.from_surface(self.image)
+
+    def find_position(self):
+        self.pos = (randint(0, Settings.window_width - Settings.asteroid_size[0]),randint(0, Settings.window_height - Settings.asteroid_size[1]))
+        self.set_pos(*self.pos)
 
     def update(self):
         self.check_pos()
@@ -204,7 +207,7 @@ class Game():
         self.spaceship.update()
         [ asteroid.update() for asteroid in self.asteroids]
         if self.asteroid_timer.is_next_stop_reached():
-            self.asteroids.add(Asteroid(Settings.asteroid_images[randint(0, len(Settings.asteroid_images) - 1)], (randint(0, Settings.window_width - Settings.asteroid_size[0]),randint(0, Settings.window_height - Settings.asteroid_size[1])), Settings.asteroid_size, { 'x': uniform(*Settings.asteroid_speed), 'y': uniform(*Settings.asteroid_speed) }))
+            self.asteroids.add(Asteroid(Settings.asteroid_images[randint(0, len(Settings.asteroid_images) - 1)], Settings.asteroid_size, { 'x': uniform(*Settings.asteroid_speed), 'y': uniform(*Settings.asteroid_speed) }))
 
     def draw(self):
         self.background.draw(self.screen)
