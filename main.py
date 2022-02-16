@@ -3,8 +3,8 @@ import pygame, os
 from math import sin, cos, radians
 
 class Settings(object):
-    window_width = 1000
-    window_height = 600
+    window_width = 1300
+    window_height = 900
     title = 'Asteroids Projekt'
     fps = 60
     path_file = os.path.dirname(os.path.abspath(__file__))
@@ -12,7 +12,7 @@ class Settings(object):
     path_image = os.path.join(path_assets, "images")
 
     spaceship_rotation_speed = 5
-    spaceship_speed = 5
+    spaceship_max_speed = 10
 
     asteroid_images = ['0.png', '1.png', '2.png']
     asteroid_spawn_duration = 500
@@ -106,7 +106,6 @@ class Spaceship(pygame.sprite.Sprite):
         self.rotate_direction = None
         self.is_accelerating = False
         self.speed = { 'y': 0, 'x': 0 }
-        self.max_speed = 5
 
         self.update_sprite(self.filenames['normal'])
         self.set_pos(Settings.window_width // 2 - self.rect.width // 2, Settings.window_height // 2 - self.rect.height // 2)
@@ -133,11 +132,14 @@ class Spaceship(pygame.sprite.Sprite):
         self.rect.left = x
 
     def accelerate(self):
-        if Settings.spaceship_speed * cos(radians(self.angle)) < self.max_speed:
-            self.speed['x'] = Settings.spaceship_speed * cos(radians(self.angle))
+        new_speed = { 'y': 0, 'x': 0 }
+        angle = radians(self.angle)
+        new_speed['x'] = self.speed['x'] - sin(angle)
+        new_speed['y'] = self.speed['y'] - cos(angle)
 
-        if Settings.spaceship_speed * sin(radians(self.angle)) < self.max_speed:
-            self.speed['y'] = Settings.spaceship_speed * sin(radians(self.angle))
+        if abs(new_speed['x']) < Settings.spaceship_max_speed and abs(new_speed['y']) < Settings.spaceship_max_speed:
+            self.speed['x'] = new_speed['x']
+            self.speed['y'] = new_speed['y']
 
     def move(self):
         self.rect.move_ip(self.speed['x'], self.speed['y'])
@@ -157,13 +159,10 @@ class Spaceship(pygame.sprite.Sprite):
 
     def rotate(self):
         if self.rotate_direction == 'left':
-            self.angle -= Settings.spaceship_rotation_speed
-
-        elif self.rotate_direction == 'right':
             self.angle += Settings.spaceship_rotation_speed
 
-        if self.angle + Settings.spaceship_rotation_speed > 360 and self.angle + Settings.spaceship_rotation_speed < -360:
-            self.angle = 0
+        elif self.rotate_direction == 'right':
+            self.angle -= Settings.spaceship_rotation_speed
 
         if self.is_accelerating:
             filename = self.filenames['boost']
@@ -172,7 +171,7 @@ class Spaceship(pygame.sprite.Sprite):
 
         center = self.rect.center
         self.update_sprite(filename)
-        self.image = pygame.transform.rotate(self.image, -self.angle)
+        self.image = pygame.transform.rotate(self.image, self.angle)
         self.center_sprite(center)
 
     def center_sprite(self, center):
