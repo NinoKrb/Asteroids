@@ -18,6 +18,7 @@ class Settings(object):
     asteroid_spawn_duration = 500
     asteroid_size = (100,100)
     asteroid_speed = (0.5,3.5)
+    asteroid_max_count = 5
 
 class Timer(object):
     def __init__(self, duraton, with_start=True):
@@ -51,6 +52,12 @@ class Asteroid(pygame.sprite.Sprite):
     def find_position(self):
         self.pos = (randint(0, Settings.window_width - Settings.asteroid_size[0]),randint(0, Settings.window_height - Settings.asteroid_size[1]))
         self.set_pos(*self.pos)
+        self.check_spawn_collission()
+
+    def check_spawn_collission(self):
+        hit = pygame.sprite.spritecollide(self, game.spaceship, False, pygame.sprite.collide_circle_ratio(2))
+        if len(hit) > 0:
+            self.find_position()
 
     def update(self):
         self.check_pos()
@@ -190,7 +197,7 @@ class Game():
         self.clock = pygame.time.Clock()
         self.background = Background('background.png')
 
-        self.spaceship = Spaceship({ 'normal': 'spaceship.png', 'boost': 'spaceship_boost.png'}, (58,56), 3)
+        self.spaceship = pygame.sprite.GroupSingle(Spaceship({ 'normal': 'spaceship.png', 'boost': 'spaceship_boost.png'}, (58,56), 3))
         self.asteroid_timer = Timer(Settings.asteroid_spawn_duration)
         self.asteroids = pygame.sprite.Group()
 
@@ -204,14 +211,15 @@ class Game():
             self.watch_for_events()
     
     def update(self):
-        self.spaceship.update()
+        self.spaceship.sprite.update()
         [ asteroid.update() for asteroid in self.asteroids]
         if self.asteroid_timer.is_next_stop_reached():
-            self.asteroids.add(Asteroid(Settings.asteroid_images[randint(0, len(Settings.asteroid_images) - 1)], Settings.asteroid_size, { 'x': uniform(*Settings.asteroid_speed), 'y': uniform(*Settings.asteroid_speed) }))
+            if len(self.asteroids) < Settings.asteroid_max_count:
+                self.asteroids.add(Asteroid(Settings.asteroid_images[randint(0, len(Settings.asteroid_images) - 1)], Settings.asteroid_size, { 'x': uniform(*Settings.asteroid_speed), 'y': uniform(*Settings.asteroid_speed) }))
 
     def draw(self):
         self.background.draw(self.screen)
-        self.spaceship.draw(self.screen)
+        self.spaceship.sprite.draw(self.screen)
         self.asteroids.draw(self.screen)
         pygame.display.flip()
 
@@ -222,20 +230,20 @@ class Game():
                     self.running = False
                 
                 if event.key == pygame.K_RIGHT:
-                    self.spaceship.change_rotate_direction('right')
+                    self.spaceship.sprite.change_rotate_direction('right')
 
                 if event.key == pygame.K_LEFT:
-                    self.spaceship.change_rotate_direction('left')
+                    self.spaceship.sprite.change_rotate_direction('left')
 
                 if event.key == pygame.K_UP:
-                    self.spaceship.is_accelerating = True
+                    self.spaceship.sprite.is_accelerating = True
 
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
-                    self.spaceship.change_rotate_direction(None)
+                    self.spaceship.sprite.change_rotate_direction(None)
             
                 if event.key == pygame.K_UP:
-                    self.spaceship.is_accelerating = False
+                    self.spaceship.sprite.is_accelerating = False
 
             if event.type == pygame.QUIT:
                 self.running = False
