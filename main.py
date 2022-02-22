@@ -1,8 +1,10 @@
 from random import randint, uniform
+from re import S
 import pygame, os
 from math import sin, cos, radians
 
 class Settings(object):
+    # Essentials
     window_width = 1300
     window_height = 900
     title = 'Asteroids Projekt'
@@ -11,14 +13,24 @@ class Settings(object):
     path_assets = os.path.join(path_file, "assets")
     path_image = os.path.join(path_assets, "images")
 
+    # Spaceship
     spaceship_rotation_speed = 5
-    spaceship_max_speed = 10
+    spaceship_max_speed = 8
+    spaceship_filenames = { 'normal': 'spaceship.png', 'boost': 'spaceship_boost.png'}
 
+    # Asteroids
     asteroid_images = ['0.png', '1.png', '2.png']
     asteroid_spawn_duration = 500
     asteroid_size = (100,100)
-    asteroid_speed = (0.5,3.5)
+    asteroid_speed = (1.5,3.5)
     asteroid_max_count = 5
+
+    # Projectiles
+    max_projectiles = 10
+    projectile_filename = 'projectile.png'
+    projectile_size = (9,21)
+    projectile_min_speed = 3
+    projectile_life_duration = 5000
 
 class Timer(object):
     def __init__(self, duraton, with_start=True):
@@ -33,6 +45,69 @@ class Timer(object):
             self.next = pygame.time.get_ticks() + self.duraton
             return True
         return False
+
+class Projectile(pygame.sprite.Sprite):
+    def __init__(self, filename, angle, speed, size, pos):
+        super().__init__()
+        self.filename = filename
+        self.angle = angle
+        self.size = size
+        self.speed = self.calculate_speed(speed)
+        self.pos = pos
+        self.life_timer = Timer(Settings.projectile_life_duration, False)
+        self.update_sprite(filename)
+        self.set_pos(*self.pos)
+
+        center = self.rect.center
+        self.update_sprite(filename)
+        self.image = pygame.transform.rotate(self.image, self.angle)
+        self.center_sprite(center)
+
+    def calculate_speed(self, speed):
+        new_speed = { 'x': 0, 'y': 0 }
+        angle = radians(self.angle)
+
+        new_speed['x'] = speed[0] - sin(angle)
+        new_speed['y'] = speed[1] - cos(angle)
+
+        if new_speed['x'] > 0 and new_speed['x'] < Settings.projectile_min_speed:
+            new_speed['x'] = Settings.projectile_min_speed
+
+        elif new_speed['x'] < 0 and new_speed['x'] > -Settings.projectile_min_speed:
+            new_speed['x'] = -Settings.projectile_min_speed
+
+        if new_speed['y'] > 0 and new_speed['y'] < Settings.projectile_min_speed:
+            new_speed['y'] = Settings.projectile_min_speed
+
+        elif new_speed['y'] < 0 and new_speed['y'] > -Settings.projectile_min_speed:
+            new_speed['y'] = -Settings.projectile_min_speed
+
+        return new_speed
+
+    def center_sprite(self, center):
+        self.rect = self.image.get_rect()
+        self.rect.center = center
+
+    def update_sprite(self, filename):
+        self.image = pygame.image.load(os.path.join(Settings.path_image, filename)).convert_alpha()
+        self.image = pygame.transform.scale(self.image, self.size)
+        self.rect = self.image.get_rect()
+        self.mask = pygame.mask.from_surface(self.image)
+
+    def update(self):
+        if self.life_timer.is_next_stop_reached():
+            self.kill()
+        self.move()
+
+    def move(self):
+        self.rect.move_ip(self.speed['x'], self.speed['y'])
+
+    def draw(self, screen):
+        screen.blit(self.image, self.rect)
+
+    def set_pos(self, x, y):
+        self.rect.top = y
+        self.rect.left = x
 
 class Asteroid(pygame.sprite.Sprite):
     def __init__(self, filename, size, speed):
@@ -106,9 +181,14 @@ class Spaceship(pygame.sprite.Sprite):
         self.rotate_direction = None
         self.is_accelerating = False
         self.speed = { 'y': 0, 'x': 0 }
+        self.projectiles = pygame.sprite.Group()
 
         self.update_sprite(self.filenames['normal'])
         self.set_pos(Settings.window_width // 2 - self.rect.width // 2, Settings.window_height // 2 - self.rect.height // 2)
+
+    def shoot(self):
+        if len(self.projectiles) <= Settings.max_projectiles:
+            self.projectiles.add(Projectile(Settings.projectile_filename, self.angle, (self.speed['x'], self.speed['y']), Settings.projectile_size, (self.rect.centerx, self.rect.centery)))
 
     def update_sprite(self, filename):
         self.image = pygame.image.load(os.path.join(Settings.path_image, filename)).convert_alpha()
@@ -118,6 +198,7 @@ class Spaceship(pygame.sprite.Sprite):
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
+        self.projectiles.draw(screen)
 
     def update(self):
         self.rotate()
@@ -126,6 +207,7 @@ class Spaceship(pygame.sprite.Sprite):
         self.check_pos()
         if self.is_accelerating:
             self.accelerate()
+        self.projectiles.update()
 
     def set_pos(self, x, y):
         self.rect.top = y
@@ -196,7 +278,7 @@ class Game():
         self.clock = pygame.time.Clock()
         self.background = Background('background.png')
 
-        self.spaceship = pygame.sprite.GroupSingle(Spaceship({ 'normal': 'spaceship.png', 'boost': 'spaceship_boost.png'}, (58,56), 3))
+        self.spaceship = pygame.sprite.GroupSingle(Spaceship(Settings.spaceship_filenames, (58,56), 3))
         self.asteroid_timer = Timer(Settings.asteroid_spawn_duration)
         self.asteroids = pygame.sprite.Group()
 
@@ -236,6 +318,9 @@ class Game():
 
                 if event.key == pygame.K_UP:
                     self.spaceship.sprite.is_accelerating = True
+
+                if event.key == pygame.K_RETURN:
+                    self.spaceship.sprite.shoot()
 
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
