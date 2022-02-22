@@ -46,7 +46,7 @@ class Timer(object):
             return True
         return False
 
-class Projectile(pygame.sprite.Sprite):
+class Projectile(pygame.sprite.DirtySprite):
     def __init__(self, filename, angle, speed, size, pos):
         super().__init__()
         self.filename = filename
@@ -109,7 +109,7 @@ class Projectile(pygame.sprite.Sprite):
         self.rect.top = y
         self.rect.left = x
 
-class Asteroid(pygame.sprite.Sprite):
+class Asteroid(pygame.sprite.DirtySprite):
     def __init__(self, filename, size, speed):
         super().__init__()
         self.filename = filename
@@ -161,7 +161,7 @@ class Asteroid(pygame.sprite.Sprite):
     def draw(self, screen):
         screen.blit(self.image, self.rect)
 
-class Background(pygame.sprite.Sprite):
+class Background(pygame.sprite.DirtySprite):
     def __init__(self, filename) -> None:
         super().__init__()
         self.image = pygame.image.load(os.path.join(Settings.path_image, filename)).convert()
@@ -171,7 +171,7 @@ class Background(pygame.sprite.Sprite):
     def draw(self, screen):
         screen.blit(self.image, self.rect)
 
-class Spaceship(pygame.sprite.Sprite):
+class Spaceship(pygame.sprite.DirtySprite):
     def __init__(self, filenames, size, lives):
         super().__init__()
         self.filenames = filenames
