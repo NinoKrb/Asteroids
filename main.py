@@ -58,6 +58,8 @@ class Projectile(pygame.sprite.DirtySprite):
         self.update_sprite(filename)
         self.set_pos(*self.pos)
 
+        self.dirty = 1
+
         center = self.rect.center
         self.update_sprite(filename)
         self.image = pygame.transform.rotate(self.image, self.angle)
@@ -101,6 +103,7 @@ class Projectile(pygame.sprite.DirtySprite):
 
     def move(self):
         self.rect.move_ip(self.speed['x'], self.speed['y'])
+        self.dirty = 1
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
@@ -108,6 +111,7 @@ class Projectile(pygame.sprite.DirtySprite):
     def set_pos(self, x, y):
         self.rect.top = y
         self.rect.left = x
+        self.dirty = 1
 
 class Asteroid(pygame.sprite.DirtySprite):
     def __init__(self, filename, size, speed):
@@ -115,6 +119,7 @@ class Asteroid(pygame.sprite.DirtySprite):
         self.filename = filename
         self.size = size
         self.speed = speed
+        self.dirty = 1
         self.update_sprite(self.filename)
         self.find_position()
 
@@ -140,6 +145,7 @@ class Asteroid(pygame.sprite.DirtySprite):
 
     def move(self):
         self.rect.move_ip(self.speed['x'], self.speed['y'])
+        self.dirty = 1
 
     def set_pos(self, x, y):
         self.rect.top = y
@@ -164,6 +170,7 @@ class Asteroid(pygame.sprite.DirtySprite):
 class Background(pygame.sprite.DirtySprite):
     def __init__(self, filename) -> None:
         super().__init__()
+        self.dirty = 1
         self.image = pygame.image.load(os.path.join(Settings.path_image, filename)).convert()
         self.image = pygame.transform.scale(self.image, (Settings.window_width, Settings.window_height))
         self.rect = self.image.get_rect()
@@ -178,10 +185,11 @@ class Spaceship(pygame.sprite.DirtySprite):
         self.size = size
         self.lives = lives
         self.angle = 1
+        self.dirty = 1
         self.rotate_direction = None
         self.is_accelerating = False
         self.speed = { 'y': 0, 'x': 0 }
-        self.projectiles = pygame.sprite.Group()
+        self.projectiles = pygame.sprite.LayeredDirty()
 
         self.update_sprite(self.filenames['normal'])
         self.set_pos(Settings.window_width // 2 - self.rect.width // 2, Settings.window_height // 2 - self.rect.height // 2)
@@ -198,7 +206,6 @@ class Spaceship(pygame.sprite.DirtySprite):
 
     def draw(self, screen):
         screen.blit(self.image, self.rect)
-        self.projectiles.draw(screen)
 
     def update(self):
         self.rotate()
@@ -225,6 +232,7 @@ class Spaceship(pygame.sprite.DirtySprite):
 
     def move(self):
         self.rect.move_ip(self.speed['x'], self.speed['y'])
+        self.dirty = 1
 
     def check_pos(self):
         if self.rect.top < -self.rect.height:
@@ -255,6 +263,7 @@ class Spaceship(pygame.sprite.DirtySprite):
         self.update_sprite(filename)
         self.image = pygame.transform.rotate(self.image, self.angle)
         self.center_sprite(center)
+        self.dirty = 1
 
     def center_sprite(self, center):
         self.rect = self.image.get_rect()
@@ -278,9 +287,9 @@ class Game():
         self.clock = pygame.time.Clock()
         self.background = Background('background.png')
 
-        self.spaceship = pygame.sprite.GroupSingle(Spaceship(Settings.spaceship_filenames, (58,56), 3))
+        self.spaceship = pygame.sprite.LayeredDirty(Spaceship(Settings.spaceship_filenames, (58,56), 3))
         self.asteroid_timer = Timer(Settings.asteroid_spawn_duration)
-        self.asteroids = pygame.sprite.Group()
+        self.asteroids = pygame.sprite.LayeredDirty()
 
         self.running = True 
 
@@ -292,7 +301,7 @@ class Game():
             self.watch_for_events()
     
     def update(self):
-        self.spaceship.sprite.update()
+        self.spaceship.sprites()[0].update()
         [ asteroid.update() for asteroid in self.asteroids]
         if self.asteroid_timer.is_next_stop_reached():
             if len(self.asteroids) < Settings.asteroid_max_count:
@@ -300,9 +309,14 @@ class Game():
 
     def draw(self):
         self.background.draw(self.screen)
-        self.spaceship.sprite.draw(self.screen)
-        self.asteroids.draw(self.screen)
-        pygame.display.flip()
+        spaceship = self.spaceship.draw(self.screen)
+        asteroids = self.asteroids.draw(self.screen)
+        bullets = self.spaceship.sprites()[0].projectiles.draw(self.screen)
+
+        tiles = spaceship + asteroids + bullets
+
+        pygame.display.update(tiles)
+        #pygame.display.flip()
 
     def watch_for_events(self):
         for event in pygame.event.get():
@@ -311,23 +325,23 @@ class Game():
                     self.running = False
                 
                 if event.key == pygame.K_RIGHT:
-                    self.spaceship.sprite.change_rotate_direction('right')
+                    self.spaceship.sprites()[0].change_rotate_direction('right')
 
                 if event.key == pygame.K_LEFT:
-                    self.spaceship.sprite.change_rotate_direction('left')
+                    self.spaceship.sprites()[0].change_rotate_direction('left')
 
                 if event.key == pygame.K_UP:
-                    self.spaceship.sprite.is_accelerating = True
+                    self.spaceship.sprites()[0].is_accelerating = True
 
                 if event.key == pygame.K_RETURN:
-                    self.spaceship.sprite.shoot()
+                    self.spaceship.sprites()[0].shoot()
 
             if event.type == pygame.KEYUP:
                 if event.key == pygame.K_LEFT or event.key == pygame.K_RIGHT:
-                    self.spaceship.sprite.change_rotate_direction(None)
+                    self.spaceship.sprites()[0].change_rotate_direction(None)
             
                 if event.key == pygame.K_UP:
-                    self.spaceship.sprite.is_accelerating = False
+                    self.spaceship.sprites()[0].is_accelerating = False
 
             if event.type == pygame.QUIT:
                 self.running = False
